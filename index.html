@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Enhanced Retro Pong — All Features</title>
+<style>
+:root{
+  --bg: #0d1117;
+  --panel: #161b22;
+  --muted: #c9d1d9;
+  --accent: #58a6ff;
+  --panel-border: #30363d;
+  --glass: rgba(255,255,255,0.03);
+}
+
+/* Theme: Retro */
+.theme-retro {
+  --bg: #071019;
+  --panel: #08171f;
+  --muted: #f0e6d2;
+  --accent: #ffb86b;
+  --panel-border: #2b2b2b;
+}
+
+/* Theme: Neon */
+.theme-neon {
+  --bg: #04030b;
+  --panel: #0b0720;
+  --muted: #e8f7ff;
+  --accent: #7effc2;
+  --panel-border: #2a1b3a;
+}
+
+*{box-sizing:border-box}
+html,body{
+  height:100%;
+  margin:0;
+  background:var(--bg);
+  color:var(--muted);
+  font-family: "Consolas", monospace;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+.app {
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  gap:20px;
+}
+
+/* layout */
+.panel {
+  background:var(--panel);
+  border-radius:12px;
+  padding:18px;
+  border:1px solid var(--panel-border);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  max-width:100%;
+}
+.left {
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  width:760px;
+  max-width: calc(100vw - 280px);
+}
+.header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.title{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.title h1{
+  margin:0;
+  font-size:1.25rem;
+  color:var(--accent);
+}
+.controls-row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.settings {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.settings-item{
+  background:var(--glass);
+  padding:8px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.02);
+  display:flex;
+  gap:8px;
+  align-items:center;
+  min-width:120px;
+}
+
+/* canvas wrapper */
+.canvas-wrap{
+  position:relative;
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+  border:1px solid var(--panel-border);
+}
+#pongCanvas{
+  display:block;
+  width:100%;
+  height:auto;
+  background:#000;
+  cursor:none;
+  image-rendering:pixelated;
+  /* small CSS glow on canvas edges */
+  box-shadow: 0 6px 40px rgba( var(--r,0), var(--g,0), var(--b,0), 0.08 );
+}
+
+/* right panel (settings & theme) */
+.side {
+  width:240px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.panel h3{ margin:0 0 6px 0; color:var(--accent) }
+.input-row{ display:flex; gap:8px; align-items:center; justify-content:space-between;}
+label{ font-size:0.85rem; color:var(--muted) }
+
+/* message box */
+.msg {
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  background:rgba(0,0,0,0.7);
+  border:2px solid var(--accent);
+  padding:14px 20px;
+  border-radius:8px;
+  color:var(--muted);
+  text-align:center;
+  z-index:20;
+  display:none;
+}
+
+/* small buttons */
+.btn {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border:1px solid rgba(255,255,255,0.04);
+  color:var(--muted);
+  padding:8px 10px;
+  border-radius:8px;
+  cursor:pointer;
+}
+.btn:active{ transform:translateY(1px) }
+
+/* theme select */
+select{ background:transparent; color:blue; border-radius:6px; padding:6px; border:1px solid rgba(255,255,255,0.03) }
+
+/* small helpers */
+.small{ font-size:0.82rem; color:var(--muted) }
+.row{ display:flex; gap:8px; align-items:center }
+.footer-note{ font-size:0.75rem; color:rgba(255,255,255,0.25)}
+
+/* responsive */
+@media(max-width:1100px){
+  .left{ max-width: calc(100vw - 260px) }
+  .panel{ padding:12px }
+}
+@media(max-width:860px){
+  .app{ flex-direction:column; padding:12px }
+  .left{ width:100% ; max-width:100%}
+  .side{ width:100% ; flex-direction:row; overflow:auto}
+}
+</style>
+</head>
+<body>
+
+<div class="app panel" id="appRoot">
+  <div class="left">
+    <div class="header">
+      <div class="title">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" stroke-width="1.2"/></svg>
+        <h1>🎮 Two-Player Retro Pong — Enhanced</h1>
+      </div>
+
+      <div class="controls-row">
+        <div class="settings-item small">
+          <label for="ballSpeedSlider">Ball Speed</label>
+          <input id="ballSpeedSlider" type="range" min="1.5" max="8" step="0.1" value="2.5" />
+          <span id="speedVal" class="small" style="min-width:34px;text-align:center">2.5</span>
+        </div>
+
+        <div class="settings-item small">
+          <label for="manualStart">Manual Start</label>
+          <input id="manualStart" type="checkbox" checked />
+        </div>
+
+        <button class="btn" id="startBtn">Start</button>
+      </div>
+    </div>
+
+    <div class="canvas-wrap" style="margin-top:12px;">
+      <canvas id="pongCanvas" width="900" height="540"></canvas>
+
+      <div id="msgBox" class="msg">
+        <div id="msgText">Welcome! Press Start or Space to play.</div>
+        <div style="margin-top:8px"><button class="btn" id="msgStart">Start Game</button></div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+      <div class="small">Controls: Player 1 — W / S | Player 2 — ↑ / ↓ | Space = Start round</div>
+      <div class="small footer-note">First to 5 wins. Power-ups spawn randomly.</div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="panel" style="padding:12px;">
+      <h3>Appearance</h3>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="input-row">
+          <label for="themeSelect">Theme</label>
+          <select id="themeSelect">
+            <option value="dark">Dark</option>
+            <option value="retro">Retro</option>
+            <option value="neon">Neon</option>
+          </select>
+        </div>
+
+        <div class="input-row">
+          <label for="p1Color">P1 Color</label>
+          <input id="p1Color" type="color" value="#c9d1d9" />
+        </div>
+
+        <div class="input-row">
+          <label for="p2Color">P2 Color</label>
+          <input id="p2Color" type="color" value="#c9d1d9" />
+        </div>
+
+        <div class="input-row">
+          <label for="ballColor">Ball Color</label>
+          <input id="ballColor" type="color" value="#c9d1d9" />
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="padding:12px;">
+      <h3>Sound & Gameplay</h3>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="row">
+          <label for="sfxToggle">SFX</label>
+          <input id="sfxToggle" type="checkbox" checked />
+        </div>
+
+        <div class="row">
+          <label for="powerupToggle">Power-ups</label>
+          <input id="powerupToggle" type="checkbox" checked />
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn" id="resetColors">Reset Colors</button>
+          <button class="btn" id="resetGame">Reset Game</button>
+        </div>
+
+        <div style="margin-top:6px;">
+          <div class="small">Active effects: <span id="activeEffects">—</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(() => {
+  // Canvas + context
+  const canvas = document.getElementById('pongCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // UI elements
+  const startBtn = document.getElementById('startBtn');
+  const msgBox = document.getElementById('msgBox');
+  const msgText = document.getElementById('msgText');
+  const msgStart = document.getElementById('msgStart');
+  const manualStartCheckbox = document.getElementById('manualStart');
+  const ballSpeedSlider = document.getElementById('ballSpeedSlider');
+  const speedVal = document.getElementById('speedVal');
+  const themeSelect = document.getElementById('themeSelect');
+  const p1ColorPicker = document.getElementById('p1Color');
+  const p2ColorPicker = document.getElementById('p2Color');
+  const ballColorPicker = document.getElementById('ballColor');
+  const sfxToggle = document.getElementById('sfxToggle');
+  const powerupToggle = document.getElementById('powerupToggle');
+  const resetColorsBtn = document.getElementById('resetColors');
+  const resetGameBtn = document.getElementById('resetGame');
+  const activeEffectsEl = document.getElementById('activeEffects');
+  const appRoot = document.getElementById('appRoot');
+
+  // Game state
+  let running = false;
+  let roundRunning = false;
+  let lastTime = 0;
+  let keys = {};
+  const MAX_SCORE = 5;
+
+  // Dimensions (will recalc on resize)
+  let paddleW, paddleH, ballSize;
+
+  // Entities
+  let paddle1 = { x: 20, y: 0, dy: 0, height: 0 };
+  let paddle2 = { x: 0, y: 0, dy: 0, height: 0 };
+  let ball = { x: 0, y: 0, dx: 0, dy: 0, speed: parseFloat(ballSpeedSlider.value) };
+  let scores = [0,0];
+  let nextServe = 0; // 0 = player1 serves right, 1 = player2 serves left
+
+  // Colors
+  let paddle1Color = p1ColorPicker.value;
+  let paddle2Color = p2ColorPicker.value;
+  let ballColor = ballColorPicker.value;
+  let accentRGB = [88,166,255];
+
+  // Effects
+  let activeEffects = []; // {name, expiresAt, meta}
+  const EFFECT_DURATION = 8000; // ms
+
+  // Power-ups
+  let powerups = []; // {x,y,size,type,ttl}
+  const POWERUP_LIFETIME = 9000; // ms
+  const POWERUP_SPAWN_INTERVAL = 7000; // ms
+  let lastPowerupSpawn = 0;
+
+  // Audio - simple WebAudio SFX generator
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = AudioCtx ? new AudioCtx() : null;
+  function playTone({freq=440, type='sine', duration=0.08, gain=0.06}) {
+    if (!audioCtx || !sfxToggle.checked) return;
+    const now = audioCtx.currentTime;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(gain, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    g.connect(audioCtx.destination);
+
+    const o = audioCtx.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, now);
+    o.connect(g);
+    o.start(now);
+    o.stop(now + duration);
+  }
+  function sfxHit() { playTone({freq:220, type:'sawtooth', duration:0.06, gain:0.05}); }
+  function sfxScore() { playTone({freq:120, type:'square', duration:0.18, gain:0.08}); }
+  function sfxPower() { playTone({freq:520, type:'sine', duration:0.14, gain:0.06}); }
+  function sfxStart() { playTone({freq:320, type:'triangle', duration:0.14, gain:0.07}); }
+
+  // Utility
+  function now(){ return performance.now(); }
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+
+  // Resize handler (responsive canvas)
+  function resize() {
+    // keep 16:9-ish relative to available width
+    const maxWidth = Math.min(window.innerWidth - 320, 1100);
+    const width = Math.max(420, maxWidth);
+    const height = Math.round(width * 0.6);
+    canvas.width = width;
+    canvas.height = height;
+
+    paddleW = Math.max(8, Math.round(canvas.width * 0.016));
+    paddleH = Math.max(48, Math.round(canvas.height * 0.18));
+    ballSize = Math.max(8, Math.round(canvas.width * 0.016));
+
+    paddle1.height = paddleH;
+    paddle2.height = paddleH;
+    paddle1.x = 20;
+    paddle2.x = canvas.width - 20 - paddleW;
+    paddle1.y = canvas.height/2 - paddleH/2;
+    paddle2.y = canvas.height/2 - paddleH/2;
+
+    // recalc accent RGB from CSS variable
+    const cs = getComputedStyle(document.documentElement);
+    const accent = cs.getPropertyValue('--accent').trim();
+    // try parse hex to rgb if accent provided as hex
+    function hexToRgb(hex){
+      if(!hex || hex[0] !== '#') return null;
+      hex = hex.replace('#','');
+      if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+      const n = parseInt(hex,16);
+      return [ (n>>16)&255, (n>>8)&255, n&255 ];
+    }
+    const h = hexToRgb(accent);
+    if(h) accentRGB = h;
+
+    // update canvas CSS glow color via variables for slight blur
+    canvas.style.setProperty('--r', accentRGB[0]);
+    canvas.style.setProperty('--g', accentRGB[1]);
+    canvas.style.setProperty('--b', accentRGB[2]);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+
+  // Reset ball & serve
+  function resetBall(setServeTo=0){
+    ball.x = canvas.width / 2 - ballSize/2;
+    ball.y = canvas.height / 2 - ballSize/2;
+    ball.speed = parseFloat(ballSpeedSlider.value);
+    ball.dx = 0;
+    ball.dy = 0;
+    nextServe = setServeTo;
+  }
+
+  function startRound(){
+    if (!running) return;
+    roundRunning = true;
+    // determine serve direction
+    const dir = nextServe === 0 ? 1 : -1;
+    const angle = (Math.random() * Math.PI/4) - (Math.PI/8);
+    ball.speed = parseFloat(ballSpeedSlider.value);
+    ball.dx = Math.cos(angle) * ball.speed * dir;
+    ball.dy = Math.sin(angle) * ball.speed;
+    msgBox.style.display = 'none';
+    sfxStart();
+  }
+
+  // Drawing functions with glow
+  function draw() {
+    // clear
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // background - subtle gradient using theme accent
+    const g = ctx.createLinearGradient(0,0,0,canvas.height);
+    g.addColorStop(0, 'rgba(0,0,0,0.0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.12)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // dashed center line
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([12,8]);
+    ctx.beginPath();
+    ctx.moveTo(canvas.width/2, 0);
+    ctx.lineTo(canvas.width/2, canvas.height);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // paddles with shadow (glow)
+    ctx.shadowColor = `rgba(${accentRGB[0]},${accentRGB[1]},${accentRGB[2]},0.15)`;
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = paddle1Color;
+    ctx.fillRect(paddle1.x, paddle1.y, paddleW, paddle1.height);
+    ctx.fillStyle = paddle2Color;
+    ctx.fillRect(paddle2.x, paddle2.y, paddleW, paddle2.height);
+
+    // ball with stronger glow
+    if (roundRunning) {
+      ctx.shadowColor = `rgba(${accentRGB[0]},${accentRGB[1]},${accentRGB[2]},0.28)`;
+      ctx.shadowBlur = 26;
+    } else {
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = `rgba(0,0,0,0.25)`;
+    }
+    ctx.fillStyle = ballColor;
+    ctx.fillRect(ball.x, ball.y, ballSize, ballSize);
+
+    // power-ups
+    ctx.shadowBlur = 12;
+    powerups.forEach(p => {
+      ctx.beginPath();
+      // glow color depends on type
+      const colors = {
+        enlarge: '#7effc2',
+        shrink: '#ff7aa2',
+        slow: '#7db7ff',
+        fast: '#ffb86b',
+        twin: '#d2a8ff',
+        invert: '#ffd36b'
+      };
+      ctx.fillStyle = colors[p.type] || '#ffffff';
+      ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+      ctx.closePath();
+    });
+    ctx.shadowBlur = 0;
+
+    // scores
+    ctx.fillStyle = '#c9d1d9';
+    ctx.font = `${Math.max(28, Math.round(canvas.width/12))}px Consolas,monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(scores[0], canvas.width/4, Math.max(60, canvas.height*0.11));
+    ctx.fillText(scores[1], canvas.width*3/4, Math.max(60, canvas.height*0.11));
+  }
+
+  // Game physics
+  function update(dt) {
+    // paddle movement
+    const paddleSpeed = 6 + (activeEffects.some(e=>e.name==='paddleBoost')?4:0);
+    if (keys['w'] || keys['W']) paddle1.y -= paddleSpeed;
+    if (keys['s'] || keys['S']) paddle1.y += paddleSpeed;
+    if (keys['ArrowUp']) paddle2.y -= paddleSpeed;
+    if (keys['ArrowDown']) paddle2.y += paddleSpeed;
+
+    paddle1.y = clamp(paddle1.y, 0, canvas.height - paddle1.height);
+    paddle2.y = clamp(paddle2.y, 0, canvas.height - paddle2.height);
+
+    // ball physics
+    if (!roundRunning) return;
+
+    // modify dt scale for consistent movement
+    const scale = dt / (1000/60);
+
+    ball.x += ball.dx * scale;
+    ball.y += ball.dy * scale;
+
+    // top/bottom bounce
+    if (ball.y <= 0) { ball.y = 0; ball.dy *= -1; sfxHit(); }
+    if (ball.y + ballSize >= canvas.height) { ball.y = canvas.height - ballSize; ball.dy *= -1; sfxHit(); }
+
+    // paddle collisions with angle
+    // left paddle
+    if (ball.dx < 0 &&
+        ball.x <= paddle1.x + paddleW &&
+        ball.x + ballSize >= paddle1.x &&
+        ball.y + ballSize >= paddle1.y &&
+        ball.y <= paddle1.y + paddle1.height) {
+
+      // compute bounce based on contact point
+      const relativeY = (ball.y + ballSize/2) - (paddle1.y + paddle1.height/2);
+      const norm = relativeY / (paddle1.height/2);
+      const bounceAngle = norm * (Math.PI/3);
+      const speedMultiplier = activeEffects.some(e=>e.name==='ballBoost') ? 1.15 : (activeEffects.some(e=>e.name==='ballSlow') ? 0.85 : 1);
+      ball.dx = Math.abs(Math.cos(bounceAngle) * ball.speed * speedMultiplier);
+      ball.dy = Math.sin(bounceAngle) * ball.speed * speedMultiplier;
+      // ensure ball moves right
+      if (ball.dx <= 0) ball.dx = Math.abs(ball.dx) + 0.5;
+      sfxHit();
+    }
+
+    // right paddle
+    if (ball.dx > 0 &&
+        ball.x + ballSize >= paddle2.x &&
+        ball.x <= paddle2.x + paddleW &&
+        ball.y + ballSize >= paddle2.y &&
+        ball.y <= paddle2.y + paddle2.height) {
+
+      const relativeY = (ball.y + ballSize/2) - (paddle2.y + paddle2.height/2);
+      const norm = relativeY / (paddle2.height/2);
+      const bounceAngle = norm * (Math.PI/3);
+      const speedMultiplier = activeEffects.some(e=>e.name==='ballBoost') ? 1.15 : (activeEffects.some(e=>e.name==='ballSlow') ? 0.85 : 1);
+      ball.dx = -Math.abs(Math.cos(bounceAngle) * ball.speed * speedMultiplier);
+      ball.dy = Math.sin(bounceAngle) * ball.speed * speedMultiplier;
+      if (ball.dx >= 0) ball.dx = -Math.abs(ball.dx) - 0.5;
+      sfxHit();
+    }
+
+    // scoring
+    if (ball.x + ballSize < 0) {
+      // player2 scores
+      scores[1] += 1;
+      sfxScore();
+      afterScore(1);
+    } else if (ball.x > canvas.width) {
+      scores[0] += 1;
+      sfxScore();
+      afterScore(0);
+    }
+
+    // powerup collision (ball picks up powerups)
+    if (powerupToggle.checked) {
+      for (let i = powerups.length -1; i>=0; i--){
+        const p = powerups[i];
+        const bx = ball.x + ballSize/2, by = ball.y + ballSize/2;
+        if (Math.abs(bx - p.x) < p.size && Math.abs(by - p.y) < p.size) {
+          applyPowerup(p.type);
+          powerups.splice(i,1);
+          sfxPower();
+        } else {
+          // expire
+          if (now() - p.spawned > POWERUP_LIFETIME) powerups.splice(i,1);
+        }
+      }
+    }
+
+    // expire active effects
+    const current = now();
+    activeEffects = activeEffects.filter(e => {
+      if (e.expiresAt > current) return true;
+      // cleanup effect
+      switch(e.name){
+        case 'enlargePaddle':
+          paddle1.height = paddleH; paddle2.height = paddleH;
+          break;
+        case 'shrinkPaddle':
+          paddle1.height = paddleH; paddle2.height = paddleH;
+          break;
+        case 'invertControls':
+          // nothing to undo because we use keys mapping (we keep flag)
+          break;
+        default:
+          break;
+      }
+      return false;
+    });
+
+    // update active effects label
+    activeEffectsEl.textContent = activeEffects.length ? activeEffects.map(e=>e.name).join(', ') : '—';
+
+    // spawn powerups occasionally
+    if (powerupToggle.checked && now() - lastPowerupSpawn > POWERUP_SPAWN_INTERVAL) {
+      spawnPowerup();
+      lastPowerupSpawn = now();
+    }
+  }
+
+  function afterScore(winnerIndex){
+    roundRunning = false;
+    resetBall(winnerIndex === 0 ? 1 : 0); // loser serves next
+    powerups = [];
+    // check win
+    if (scores[0] >= MAX_SCORE || scores[1] >= MAX_SCORE) {
+      running = false;
+      roundRunning = false;
+      msgText.innerHTML = `<strong>Game Over!</strong><br>${scores[0] >= MAX_SCORE ? 'Player 1 Wins!' : 'Player 2 Wins!'}<br>Press Start to play again.`;
+      msgBox.style.display = 'block';
+    } else {
+      // next serve message or auto-start
+      msgText.innerHTML = `Point!<br>${winnerIndex===0 ? 'Player 1' : 'Player 2'} scored.<br>${nextServe===0 ? 'Player 1' : 'Player 2'} serves next.`;
+      msgBox.style.display = 'block';
+      if (!manualStartCheckbox.checked && running) {
+        setTimeout(()=> { if(running && !roundRunning) startRound(); }, 900);
+      }
+    }
+  }
+
+  // Power-ups: types and effects
+  function spawnPowerup(){
+    const types = ['enlarge','shrink','slow','fast','twin','invert'];
+    const type = types[Math.floor(Math.random()*types.length)];
+    const size = Math.max(18, Math.round(canvas.width * 0.024));
+    const margin = 80;
+    const x = Math.random() * (canvas.width - margin*2) + margin;
+    const y = Math.random() * (canvas.height - margin*2) + margin;
+    powerups.push({x,y,size,type,spawned:now()});
+  }
+
+  function applyPowerup(type){
+    const expiresAt = now() + EFFECT_DURATION;
+    switch(type){
+      case 'enlarge':
+        paddle1.height = paddle1.height * 1.35;
+        paddle2.height = paddle2.height * 1.35;
+        activeEffects.push({name:'enlargePaddle', expiresAt});
+        break;
+      case 'shrink':
+        paddle1.height = Math.max(40, paddle1.height * 0.7);
+        paddle2.height = Math.max(40, paddle2.height * 0.7);
+        activeEffects.push({name:'shrinkPaddle', expiresAt});
+        break;
+      case 'slow':
+        ball.speed = Math.max(1.2, ball.speed * 0.75);
+        activeEffects.push({name:'ballSlow', expiresAt});
+        break;
+      case 'fast':
+        ball.speed = Math.min(12, ball.speed * 1.25);
+        activeEffects.push({name:'ballBoost', expiresAt});
+        break;
+      case 'twin':
+        // spawn ghost ball that follows similar path (visual only)
+        spawnTwinBall();
+        activeEffects.push({name:'twinBall', expiresAt});
+        break;
+      case 'invert':
+        activeEffects.push({name:'invertControls', expiresAt});
+        break;
+      default:
+        break;
+    }
+  }
+
+  // twin ball visuals (simple, one ghost)
+  let twinBall = null;
+  function spawnTwinBall(){
+    twinBall = {
+      x: ball.x + 10,
+      y: ball.y + 10,
+      dx: -ball.dx*0.9,
+      dy: ball.dy*0.9,
+      size: ballSize,
+      ttl: now() + EFFECT_DURATION
+    };
+  }
+
+  // Input handling & invert check
+  function handleKeyDown(e){
+    if (e.key === ' ') {
+      // Start / start round
+      if (!running) startGame();
+      else if (running && !roundRunning && manualStartCheckbox.checked) startRound();
+      e.preventDefault();
+    }
+    keys[e.key] = true;
+  }
+  function handleKeyUp(e){
+    keys[e.key] = false;
+  }
+
+  // Start game
+  function startGame(){
+    // resume audio context on user gesture
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+    running = true;
+    roundRunning = false;
+    scores = [0,0];
+    resetBall(0);
+    lastTime = performance.now();
+    msgBox.style.display = 'none';
+    sfxStart();
+    requestAnimationFrame(loop);
+  }
+
+  // Loop
+  let lastLoop = performance.now();
+  function loop(t){
+    if (!running) return;
+    const dt = t - lastTime;
+    lastTime = t;
+
+    // manage inverted controls by swapping keys mapping if active
+    const invertActive = activeEffects.some(e=>e.name==='invertControls');
+    // simple handling: if invertActive, flip arrow keys and w/s mapping
+    // We'll process key booleans into local variables to avoid mutation
+    const wPressed = !!keys['w'] || !!keys['W'];
+    const sPressed = !!keys['s'] || !!keys['S'];
+    const upPressed = !!keys['ArrowUp'];
+    const downPressed = !!keys['ArrowDown'];
+
+    // set dy flags based on invert
+    paddle1.dy = 0;
+    paddle2.dy = 0;
+    if (!invertActive) {
+      if (wPressed) paddle1.dy = -1;
+      else if (sPressed) paddle1.dy = 1;
+      if (upPressed) paddle2.dy = -1;
+      else if (downPressed) paddle2.dy = 1;
+    } else {
+      // inverted
+      if (wPressed) paddle1.dy = 1;
+      else if (sPressed) paddle1.dy = -1;
+      if (upPressed) paddle2.dy = 1;
+      else if (downPressed) paddle2.dy = -1;
+    }
+
+    // compute scaled dt for movement (pass to update)
+    update(dt);
+    // draw game
+    draw();
+
+    // draw twin ball overlay if exists
+    if (twinBall){
+      // twin fades
+      if (now() > twinBall.ttl) twinBall = null;
+      else {
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = '#d2a8ff';
+        ctx.shadowBlur = 20;
+        ctx.fillRect(twinBall.x, twinBall.y, twinBall.size, twinBall.size);
+        ctx.restore();
+        // advance twin along its motion
+        twinBall.x += twinBall.dx * (dt/(1000/60));
+        twinBall.y += twinBall.dy * (dt/(1000/60));
+      }
+    }
+
+    // update powerup TTL visuals (we handled in update)
+    requestAnimationFrame(loop);
+  }
+
+  // event listeners
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
+  startBtn.addEventListener('click', ()=>{ if(!running) startGame(); else { if(!roundRunning && manualStartCheckbox.checked) startRound(); } });
+  msgStart.addEventListener('click', ()=>{ if(!running) startGame(); else if(!roundRunning) startRound(); });
+
+  // UI: sliders and pickers
+  ballSpeedSlider.addEventListener('input', (e)=>{
+    speedVal.textContent = e.target.value;
+    if (!roundRunning) ball.speed = parseFloat(e.target.value);
+  });
+
+  p1ColorPicker.addEventListener('input', (e)=>{ paddle1Color = e.target.value; draw(); });
+  p2ColorPicker.addEventListener('input', (e)=>{ paddle2Color = e.target.value; draw(); });
+  ballColorPicker.addEventListener('input', (e)=>{ ballColor = e.target.value; draw(); });
+
+  // theme
+  themeSelect.addEventListener('change', (e)=>{
+    document.documentElement.classList.remove('theme-retro','theme-neon');
+    if (e.target.value === 'retro') document.documentElement.classList.add('theme-retro');
+    if (e.target.value === 'neon') document.documentElement.classList.add('theme-neon');
+    // update accent RGB from computed style
+    resize();
+    draw();
+  });
+
+  // reset colors
+  resetColorsBtn.addEventListener('click', ()=>{
+    p1ColorPicker.value = '#c9d1d9';
+    p2ColorPicker.value = '#c9d1d9';
+    ballColorPicker.value = '#c9d1d9';
+    paddle1Color = p1ColorPicker.value;
+    paddle2Color = p2ColorPicker.value;
+    ballColor = ballColorPicker.value;
+    draw();
+  });
+
+  resetGameBtn.addEventListener('click', ()=>{
+    running = false;
+    roundRunning = false;
+    scores = [0,0];
+    resetBall(0);
+    powerups = [];
+    activeEffects = [];
+    twinBall = null;
+    msgText.innerHTML = "Welcome! Press Start or Space to play.";
+    msgBox.style.display = 'block';
+    draw();
+  });
+
+  // powerup toggle (just redraw)
+  powerupToggle.addEventListener('change', ()=>{ if(!powerupToggle.checked) powerups = []; draw(); });
+
+  // spawn powerup on demand for debug (double-click canvas)
+  canvas.addEventListener('dblclick', ()=>spawnPowerup());
+
+  // touch controls
+  let touchId = null;
+  canvas.addEventListener('touchstart', (ev) => {
+    ev.preventDefault();
+    const t = ev.changedTouches[0];
+    touchId = t.identifier;
+    const rect = canvas.getBoundingClientRect();
+    const x = t.clientX - rect.left;
+    const side = x < canvas.width/2 ? 'left' : 'right';
+    // store touch anchor
+    canvas._touchY = t.clientY;
+    canvas._touchSide = side;
+  }, {passive:false});
+  canvas.addEventListener('touchmove', (ev) => {
+    ev.preventDefault();
+    const t = ev.changedTouches[0];
+    if (touchId !== t.identifier) return;
+    const rect = canvas.getBoundingClientRect();
+    const y = t.clientY - rect.top;
+    const dy = y - (canvas._lastTouchY ?? y);
+    canvas._lastTouchY = y;
+    if (canvas._touchSide === 'left') {
+      paddle1.y += dy * 0.9;
+    } else {
+      paddle2.y += dy * 0.9;
+    }
+    paddle1.y = clamp(paddle1.y,0,canvas.height - paddle1.height);
+    paddle2.y = clamp(paddle2.y,0,canvas.height - paddle2.height);
+  }, {passive:false});
+  canvas.addEventListener('touchend', (ev) => {
+    canvas._touchY = null;
+    canvas._touchSide = null;
+    touchId = null;
+  });
+
+  // initial setup
+  resize();
+  resetBall(0);
+  msgBox.style.display = 'block';
+  draw();
+
+  // expose some helpers for dev console (optional)
+  window.__pong = { startGame, startRound, spawnPowerup, getState: ()=>({scores,activeEffects,powerups}) };
+
+})();
+</script>
+
+</body>
+</html>
