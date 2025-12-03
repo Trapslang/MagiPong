@@ -504,10 +504,8 @@ select{ background:transparent; color:blue; border-radius:6px; padding:6px; bord
   function update(dt) {
     // paddle movement
     const paddleSpeed = 6 + (activeEffects.some(e=>e.name==='paddleBoost')?4:0);
-    if (keys['w'] || keys['W']) paddle1.y -= paddleSpeed;
-    if (keys['s'] || keys['S']) paddle1.y += paddleSpeed;
-    if (keys['ArrowUp']) paddle2.y -= paddleSpeed;
-    if (keys['ArrowDown']) paddle2.y += paddleSpeed;
+paddle1.y += paddle1.dy * paddleSpeed;
+paddle2.y += paddle2.dy * paddleSpeed;
 
     paddle1.y = clamp(paddle1.y, 0, canvas.height - paddle1.height);
     paddle2.y = clamp(paddle2.y, 0, canvas.height - paddle2.height);
@@ -891,3 +889,4 @@ select{ background:transparent; color:blue; border-radius:6px; padding:6px; bord
 
 </body>
 </html>
+
