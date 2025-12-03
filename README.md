@@ -1,3 +1,6 @@
+## 🏷️ Tags
+Pong, Arcade, Retro, 2D, Local Multiplayer, Power-Ups, Random Effects, Fast-Paced
+
 MagiPong
 
 A modern remake of the classic PONG game — now with chaotic twist effects that keep every match unpredictable and fun. Designed for 2 players on 1 device, this version focuses on fast-paced local competition.
