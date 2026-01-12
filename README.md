@@ -62,7 +62,7 @@ Adapt to random effects to gain the advantage.
 
 **📣 Credits**
 
-Developer: You
+Developer: Robbe
 
 Inspired By: The original Atari PONG
 
